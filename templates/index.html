@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart College Assistant</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: linear-gradient(to right, #74ebd5, #ACB6E5);
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 350px;
+            margin: auto;
+            box-shadow: 0px 0px 10px gray;
+        }
+
+        input {
+            padding: 8px;
+            margin: 5px;
+            width: 80%;
+        }
+
+        button {
+            padding: 10px;
+            margin: 5px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .result {
+            margin-top: 15px;
+        }
+
+        ul {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h2>🎓 Smart College Assistant</h2>
+
+    <!-- Add Student -->
+    <h3>Add Student</h3>
+    <form method="POST">
+        <input type="hidden" name="action" value="add">
+        <input type="text" name="name" placeholder="Enter Name" required><br>
+        <input type="text" name="roll" placeholder="Enter Roll Number" required><br>
+        <input type="number" name="marks" placeholder="Enter Marks" required><br>
+        <button type="submit">Add Student</button>
+    </form>
+
+    <!-- Actions -->
+    <h3>Actions</h3>
+    <form method="POST">
+        <button name="action" value="topper">🏆 Show Topper</button>
+        <button name="action" value="analysis">📊 Performance</button>
+    </form>
+
+    <!-- Message -->
+    <div class="result">
+        {% if message %}
+            {% if "❌" in message %}
+                <p class="error">{{ message }}</p>
+            {% else %}
+                <p class="success">{{ message }}</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Student List -->
+    <h3>📋 Students</h3>
+    <ul>
+        {% for s in students %}
+            <li>{{ s.name }} | {{ s.roll }} | {{ s.marks }}</li>
+        {% endfor %}
+    </ul>
+
+    <!-- Topper -->
+    {% if topper %}
+        <h3>🏆 Topper</h3>
+        <p>{{ topper.name }} - {{ topper.marks }}</p>
+    {% endif %}
+
+    <!-- Average -->
+    {% if average %}
+        <h3>📊 Average Marks</h3>
+        <p>{{ average }}</p>
+    {% endif %}
+
+</div>
+
+</body>
+</html>
