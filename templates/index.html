@@ -7,66 +7,88 @@
 
 <h1>🎓 Smart College Assistant</h1>
 
-<!-- MESSAGE -->
 {% if message %}
 <p>{{ message }}</p>
 {% endif %}
 
-<!-- ADD STUDENT -->
+<!-- ADD -->
 <h3>Add Student</h3>
 <form method="POST">
     <input type="text" name="name" placeholder="Name" required>
     <input type="text" name="roll" placeholder="Roll Number" required>
-    <input type="number" name="marks" placeholder="Marks" required>
+
+    <select name="dept" required>
+        <option value="">Department</option>
+        <option>CSE</option>
+        <option>ECE</option>
+        <option>MECH</option>
+        <option>CIVIL</option>
+        <option>AI</option>
+        <option>AI&ML</option>
+    </select>
+
+    <select name="section" required>
+        <option value="">Section</option>
+        <option>A</option>
+        <option>B</option>
+        <option>C</option>
+    </select>
+
+    <input type="number" name="marks" placeholder="Marks (0-100)" required>
+
     <button name="action" value="add">Add</button>
 </form>
 
 <!-- SEARCH -->
-<h3>Search Student</h3>
+<h3>Search</h3>
 <form method="POST">
-    <input type="text" name="search_roll" placeholder="Roll Number">
+    <input type="text" name="search_roll" placeholder="Roll">
     <button name="action" value="search">Search</button>
 </form>
 
 <!-- DELETE -->
-<h3>Delete Student</h3>
+<h3>Delete</h3>
 <form method="POST">
-    <input type="text" name="delete_roll" placeholder="Roll Number">
+    <input type="text" name="delete_roll" placeholder="Roll">
     <button name="action" value="delete">Delete</button>
 </form>
 
 <!-- EDIT -->
 <h3>Edit Marks</h3>
 <form method="POST">
-    <input type="text" name="edit_roll" placeholder="Roll Number">
+    <input type="text" name="edit_roll" placeholder="Roll">
     <input type="number" name="new_marks" placeholder="New Marks">
     <button name="action" value="edit">Update</button>
 </form>
 
-<!-- EXTRA -->
-<h3>Extras</h3>
-<form method="POST">
-    <button name="action" value="topper">Show Topper</button>
-    <button name="action" value="analysis">Show Analysis</button>
-</form>
+<hr>
 
-<!-- STUDENT LIST -->
 <h2>Student List</h2>
-<ul>
-{% for s in students %}
-    <li>
-        {{ s.name }} | {{ s.roll }} | {{ s.marks }}
-        {% if s.cgpa %}
-            | CGPA: {{ s.cgpa }}
-        {% endif %}
-    </li>
-{% endfor %}
-</ul>
 
-<!-- TOPPER -->
-{% if topper %}
-<h2>🏆 Topper: {{ topper.name }} ({{ topper.marks }})</h2>
-{% endif %}
+<table border="1">
+<tr>
+<th>Name</th>
+<th>Roll</th>
+<th>Dept</th>
+<th>Section</th>
+<th>Marks</th>
+<th>CGPA</th>
+<th>Report</th>
+</tr>
+
+{% for s in students %}
+<tr>
+<td>{{ s.name }}</td>
+<td>{{ s.roll }}</td>
+<td>{{ s.dept }}</td>
+<td>{{ s.section }}</td>
+<td>{{ s.marks }}</td>
+<td>{{ s.cgpa }}</td>
+<td>{{ s.report }}</td>
+</tr>
+{% endfor %}
+
+</table>
 
 </body>
 </html>
