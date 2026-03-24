@@ -1,78 +1,106 @@
 from flask import Flask, render_template, request
+import sqlite3
 
 app = Flask(__name__)
 
-FILE_NAME = "students.txt"
+# 🔥 CREATE DATABASE
+def init_db():
+    conn = sqlite3.connect("students.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS students (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        roll TEXT UNIQUE,
+        dept TEXT,
+        section TEXT,
+        marks INTEGER,
+        cgpa REAL
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# 🔍 PERFORMANCE ANALYSIS
+def analyze_performance(marks):
+    if marks >= 90:
+        return "🌟 Excellent!"
+    elif marks >= 75:
+        return "👍 Good"
+    elif marks >= 50:
+        return "⚠️ Average"
+    else:
+        return "❌ Needs Improvement"
 
 @app.route("/", methods=["GET", "POST"])
 def home():
-    students = []
     message = ""
-    topper = None
 
-    # 📥 Read file
-    try:
-        with open(FILE_NAME, "r") as file:
-            for line in file:
-                try:
-                    name, roll, marks = line.strip().split(",")
-                    students.append({
-                        "name": name,
-                        "roll": roll,
-                        "marks": int(marks)
-                    })
-                except:
-                    continue
-    except FileNotFoundError:
-        pass
-
-    # 🔥 HANDLE FORM
     if request.method == "POST":
         action = request.form.get("action")
 
-        # ➕ ADD STUDENT
+        conn = sqlite3.connect("students.db")
+        cursor = conn.cursor()
+
+        # ➕ ADD
         if action == "add":
             name = request.form.get("name")
             roll = request.form.get("roll")
+            dept = request.form.get("dept")
+            section = request.form.get("section")
 
             try:
                 marks = int(request.form.get("marks"))
-                if marks < 0:
-                    message = "❌ Marks cannot be negative!"
-                    return render_template("index.html", students=students, message=message)
+
+                if marks < 0 or marks > 100:
+                    message = "❌ Marks must be 0-100"
+                else:
+                    cgpa = round(marks / 10, 2)
+
+                    try:
+                        cursor.execute("""
+                        INSERT INTO students (name, roll, dept, section, marks, cgpa)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """, (name, roll, dept, section, marks, cgpa))
+
+                        conn.commit()
+                        message = "✅ Student added!"
+                    except:
+                        message = "❌ Roll already exists!"
+
             except:
-                message = "❌ Invalid marks!"
-                return render_template("index.html", students=students, message=message)
-
-            # Duplicate check
-            for s in students:
-                if s["roll"] == roll:
-                    message = "❌ Roll already exists!"
-                    return render_template("index.html", students=students, message=message)
-
-            with open(FILE_NAME, "a") as file:
-                file.write(f"{name},{roll},{marks}\n")
-
-            message = "✅ Student added!"
+                message = "❌ Invalid input!"
 
         # 🔍 SEARCH
         elif action == "search":
             search_roll = request.form.get("search_roll")
-            students = [s for s in students if s["roll"] == search_roll]
+            cursor.execute("SELECT * FROM students WHERE roll=?", (search_roll,))
+            data = cursor.fetchall()
+
+            students = []
+            for row in data:
+                students.append({
+                    "name": row[1],
+                    "roll": row[2],
+                    "dept": row[3],
+                    "section": row[4],
+                    "marks": row[5],
+                    "cgpa": row[6],
+                    "report": analyze_performance(row[5])
+                })
+
+            conn.close()
+            return render_template("index.html", students=students, message="🔍 Search result")
 
         # 🗑️ DELETE
         elif action == "delete":
             delete_roll = request.form.get("delete_roll")
-
-            new_data = []
-            for s in students:
-                if s["roll"] != delete_roll:
-                    new_data.append(f"{s['name']},{s['roll']},{s['marks']}")
-
-            with open(FILE_NAME, "w") as file:
-                for line in new_data:
-                    file.write(line + "\n")
-
+            cursor.execute("DELETE FROM students WHERE roll=?", (delete_roll,))
+            conn.commit()
             message = "🗑️ Student deleted!"
 
         # ✏️ EDIT
@@ -81,44 +109,48 @@ def home():
 
             try:
                 new_marks = int(request.form.get("new_marks"))
-                if new_marks < 0:
-                    message = "❌ Marks cannot be negative!"
-                    return render_template("index.html", students=students, message=message)
+
+                if new_marks < 0 or new_marks > 100:
+                    message = "❌ Marks must be 0-100"
+                else:
+                    cgpa = round(new_marks / 10, 2)
+
+                    cursor.execute("""
+                    UPDATE students
+                    SET marks=?, cgpa=?
+                    WHERE roll=?
+                    """, (new_marks, cgpa, edit_roll))
+
+                    conn.commit()
+                    message = "✏️ Updated!"
+
             except:
                 message = "❌ Invalid marks!"
-                return render_template("index.html", students=students, message=message)
 
-            new_data = []
+        conn.close()
 
-            for s in students:
-                if s["roll"] == edit_roll:
-                    new_data.append(f"{s['name']},{s['roll']},{new_marks}")
-                else:
-                    new_data.append(f"{s['name']},{s['roll']},{s['marks']}")
+    # 📥 FETCH ALL DATA
+    conn = sqlite3.connect("students.db")
+    cursor = conn.cursor()
 
-            with open(FILE_NAME, "w") as file:
-                for line in new_data:
-                    file.write(line + "\n")
+    cursor.execute("SELECT * FROM students")
+    data = cursor.fetchall()
 
-            message = "✏️ Marks updated!"
+    students = []
+    for row in data:
+        students.append({
+            "name": row[1],
+            "roll": row[2],
+            "dept": row[3],
+            "section": row[4],
+            "marks": row[5],
+            "cgpa": row[6],
+            "report": analyze_performance(row[5])
+        })
 
-        # 🏆 TOPPER
-        elif action == "topper":
-            if students:
-                topper = max(students, key=lambda x: x["marks"])
+    conn.close()
 
-        # 📊 ANALYSIS + CGPA
-        elif action == "analysis":
-            if students:
-                total = sum(s["marks"] for s in students)
-                average = total / len(students)
-
-                for s in students:
-                    s["cgpa"] = round(s["marks"] / 10, 2)
-
-                message = f"📊 Average Marks: {round(average, 2)}"
-
-    return render_template("index.html", students=students, message=message, topper=topper)
+    return render_template("index.html", students=students, message=message)
 
 
 if __name__ == "__main__":
