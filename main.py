@@ -3,7 +3,7 @@ import sqlite3
 
 app = Flask(__name__)
 
-# 🔥 CREATE DATABASE
+# 🔥 INIT DB
 def init_db():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -15,7 +15,8 @@ def init_db():
         roll TEXT UNIQUE,
         dept TEXT,
         section TEXT,
-        marks INTEGER,
+        subjects INTEGER,
+        marks TEXT,
         cgpa REAL
     )
     """)
@@ -25,16 +26,16 @@ def init_db():
 
 init_db()
 
-# 🔍 PERFORMANCE ANALYSIS
-def analyze_performance(marks):
-    if marks >= 90:
-        return "🌟 Excellent!"
-    elif marks >= 75:
+# 🔍 PERFORMANCE
+def analyze(avg):
+    if avg >= 90:
+        return "🌟 Excellent"
+    elif avg >= 75:
         return "👍 Good"
-    elif marks >= 50:
+    elif avg >= 50:
         return "⚠️ Average"
     else:
-        return "❌ Needs Improvement"
+        return "❌ Improve"
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -46,112 +47,110 @@ def home():
         conn = sqlite3.connect("students.db")
         cursor = conn.cursor()
 
-        # ➕ ADD
+        # ➕ ADD STUDENT
         if action == "add":
             name = request.form.get("name")
             roll = request.form.get("roll")
             dept = request.form.get("dept")
             section = request.form.get("section")
+            subjects = int(request.form.get("subjects"))
+            marks_input = request.form.get("marks")
 
             try:
-                marks = int(request.form.get("marks"))
+                marks_list = list(map(int, marks_input.split(",")))
 
-                if marks < 0 or marks > 100:
+                if len(marks_list) != subjects:
+                    message = "❌ Subjects & marks count mismatch"
+                elif any(m < 0 or m > 100 for m in marks_list):
                     message = "❌ Marks must be 0-100"
                 else:
-                    cgpa = round(marks / 10, 2)
+                    avg = sum(marks_list) / subjects
+                    cgpa = round(avg / 10, 2)
 
                     try:
                         cursor.execute("""
-                        INSERT INTO students (name, roll, dept, section, marks, cgpa)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """, (name, roll, dept, section, marks, cgpa))
+                        INSERT INTO students (name, roll, dept, section, subjects, marks, cgpa)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (name, roll, dept, section, subjects, marks_input, cgpa))
 
                         conn.commit()
-                        message = "✅ Student added!"
+                        message = "✅ Added successfully!"
                     except:
-                        message = "❌ Roll already exists!"
+                        message = "❌ Roll already exists"
 
             except:
-                message = "❌ Invalid input!"
+                message = "❌ Invalid marks format"
 
         # 🔍 SEARCH
         elif action == "search":
-            search_roll = request.form.get("search_roll")
-            cursor.execute("SELECT * FROM students WHERE roll=?", (search_roll,))
+            roll = request.form.get("search_roll")
+            cursor.execute("SELECT * FROM students WHERE roll=?", (roll,))
+            data = cursor.fetchall()
+        else:
+            cursor.execute("SELECT * FROM students")
             data = cursor.fetchall()
 
-            students = []
-            for row in data:
-                students.append({
-                    "name": row[1],
-                    "roll": row[2],
-                    "dept": row[3],
-                    "section": row[4],
-                    "marks": row[5],
-                    "cgpa": row[6],
-                    "report": analyze_performance(row[5])
-                })
-
-            conn.close()
-            return render_template("index.html", students=students, message="🔍 Search result")
-
         # 🗑️ DELETE
-        elif action == "delete":
-            delete_roll = request.form.get("delete_roll")
-            cursor.execute("DELETE FROM students WHERE roll=?", (delete_roll,))
+        if action == "delete":
+            roll = request.form.get("delete_roll")
+            cursor.execute("DELETE FROM students WHERE roll=?", (roll,))
             conn.commit()
-            message = "🗑️ Student deleted!"
+            message = "🗑️ Deleted"
 
         # ✏️ EDIT
-        elif action == "edit":
-            edit_roll = request.form.get("edit_roll")
+        if action == "edit":
+            roll = request.form.get("edit_roll")
+            marks_input = request.form.get("new_marks")
 
             try:
-                new_marks = int(request.form.get("new_marks"))
+                marks_list = list(map(int, marks_input.split(",")))
+                avg = sum(marks_list) / len(marks_list)
+                cgpa = round(avg / 10, 2)
 
-                if new_marks < 0 or new_marks > 100:
-                    message = "❌ Marks must be 0-100"
-                else:
-                    cgpa = round(new_marks / 10, 2)
+                cursor.execute("""
+                UPDATE students SET marks=?, cgpa=?
+                WHERE roll=?
+                """, (marks_input, cgpa, roll))
 
-                    cursor.execute("""
-                    UPDATE students
-                    SET marks=?, cgpa=?
-                    WHERE roll=?
-                    """, (new_marks, cgpa, edit_roll))
-
-                    conn.commit()
-                    message = "✏️ Updated!"
-
+                conn.commit()
+                message = "✏️ Updated"
             except:
-                message = "❌ Invalid marks!"
+                message = "❌ Error updating"
 
         conn.close()
 
-    # 📥 FETCH ALL DATA
-    conn = sqlite3.connect("students.db")
-    cursor = conn.cursor()
+    else:
+        conn = sqlite3.connect("students.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM students")
+        data = cursor.fetchall()
+        conn.close()
 
-    cursor.execute("SELECT * FROM students")
-    data = cursor.fetchall()
-
+    # 📊 PROCESS DATA
     students = []
+    section_count = {}
+
     for row in data:
+        avg = sum(map(int, row[6].split(","))) / row[5]
+
+        key = f"{row[3]}-{row[4]}"
+        section_count[key] = section_count.get(key, 0) + 1
+
         students.append({
             "name": row[1],
             "roll": row[2],
             "dept": row[3],
             "section": row[4],
-            "marks": row[5],
-            "cgpa": row[6],
-            "report": analyze_performance(row[5])
+            "subjects": row[5],
+            "marks": row[6],
+            "cgpa": row[7],
+            "report": analyze(avg)
         })
 
-    conn.close()
-
-    return render_template("index.html", students=students, message=message)
-
+    return render_template("index.html",
+                           students=students,
+                           message=message,
+                           section_count=section_count)
 
 if __name__ == "__main__":
     app.run(debug=True)
