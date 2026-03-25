@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 import sqlite3
 
 app = Flask(__name__)
 
-# 🔥 INIT DB
+# ---------------- DATABASE ----------------
 def init_db():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -26,131 +26,114 @@ def init_db():
 
 init_db()
 
-# 🔍 PERFORMANCE
-def analyze(avg):
-    if avg >= 90:
-        return "🌟 Excellent"
-    elif avg >= 75:
-        return "👍 Good"
-    elif avg >= 50:
-        return "⚠️ Average"
-    else:
-        return "❌ Improve"
-
+# ---------------- HOME ----------------
 @app.route("/", methods=["GET", "POST"])
 def home():
-    message = ""
 
     if request.method == "POST":
+
         action = request.form.get("action")
 
-        conn = sqlite3.connect("students.db")
-        cursor = conn.cursor()
-
-        # ➕ ADD STUDENT
+        # ================= ADD STUDENT =================
         if action == "add":
+
             name = request.form.get("name")
-            roll = request.form.get("roll")
+            roll = request.form.get("roll")  # keep string
             dept = request.form.get("dept")
             section = request.form.get("section")
-            subjects = int(request.form.get("subjects"))
-            marks_input = request.form.get("marks")
 
             try:
-                marks_list = list(map(int, marks_input.split(",")))
+                subjects = int(request.form.get("subjects"))
+                marks_input = request.form.get("marks")
 
-                if len(marks_list) != subjects:
-                    message = "❌ Subjects & marks count mismatch"
-                elif any(m < 0 or m > 100 for m in marks_list):
-                    message = "❌ Marks must be 0-100"
-                else:
-                    avg = sum(marks_list) / subjects
-                    cgpa = round(avg / 10, 2)
+                # Convert "80,90,70" → [80,90,70]
+                marks = [int(x.strip()) for x in marks_input.split(",")]
 
-                    try:
-                        cursor.execute("""
-                        INSERT INTO students (name, roll, dept, section, subjects, marks, cgpa)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (name, roll, dept, section, subjects, marks_input, cgpa))
+                # Validation
+                if len(marks) != subjects:
+                    return "❌ Subjects count & marks mismatch!"
 
-                        conn.commit()
-                        message = "✅ Added successfully!"
-                    except:
-                        message = "❌ Roll already exists"
+                if any(m < 0 or m > 100 for m in marks):
+                    return "❌ Marks must be between 0–100"
 
-            except:
-                message = "❌ Invalid marks format"
+                cgpa = round(sum(marks) / len(marks), 2)
 
-        # 🔍 SEARCH
-        elif action == "search":
-            roll = request.form.get("search_roll")
-            cursor.execute("SELECT * FROM students WHERE roll=?", (roll,))
-            data = cursor.fetchall()
-        else:
-            cursor.execute("SELECT * FROM students")
-            data = cursor.fetchall()
-
-        # 🗑️ DELETE
-        if action == "delete":
-            roll = request.form.get("delete_roll")
-            cursor.execute("DELETE FROM students WHERE roll=?", (roll,))
-            conn.commit()
-            message = "🗑️ Deleted"
-
-        # ✏️ EDIT
-        if action == "edit":
-            roll = request.form.get("edit_roll")
-            marks_input = request.form.get("new_marks")
-
-            try:
-                marks_list = list(map(int, marks_input.split(",")))
-                avg = sum(marks_list) / len(marks_list)
-                cgpa = round(avg / 10, 2)
+                conn = sqlite3.connect("students.db")
+                cursor = conn.cursor()
 
                 cursor.execute("""
-                UPDATE students SET marks=?, cgpa=?
-                WHERE roll=?
-                """, (marks_input, cgpa, roll))
+                INSERT INTO students (name, roll, dept, section, subjects, marks, cgpa)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (name, roll, dept, section, subjects, marks_input, cgpa))
 
                 conn.commit()
-                message = "✏️ Updated"
+                conn.close()
+
+            except sqlite3.IntegrityError:
+                return "❌ Roll number already exists!"
+
             except:
-                message = "❌ Error updating"
+                return "❌ Invalid input format!"
 
-        conn.close()
+        # ================= DELETE =================
+        elif action == "delete":
+            roll = request.form.get("roll")
 
-    else:
-        conn = sqlite3.connect("students.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM students")
-        data = cursor.fetchall()
-        conn.close()
+            conn = sqlite3.connect("students.db")
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM students WHERE roll=?", (roll,))
+            conn.commit()
+            conn.close()
 
-    # 📊 PROCESS DATA
-    students = []
-    section_count = {}
+        # ================= SEARCH =================
+        elif action == "search":
+            search_roll = request.form.get("search_roll")
 
-    for row in data:
-        avg = sum(map(int, row[6].split(","))) / row[5]
+            conn = sqlite3.connect("students.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM students WHERE roll=?", (search_roll,))
+            result = cursor.fetchall()
+            conn.close()
 
-        key = f"{row[3]}-{row[4]}"
-        section_count[key] = section_count.get(key, 0) + 1
+            return render_template("index.html", students=result)
 
-        students.append({
-            "name": row[1],
-            "roll": row[2],
-            "dept": row[3],
-            "section": row[4],
-            "subjects": row[5],
-            "marks": row[6],
-            "cgpa": row[7],
-            "report": analyze(avg)
-        })
+        # ================= UPDATE =================
+        elif action == "update":
+            roll = request.form.get("roll")
+            new_marks_input = request.form.get("marks")
 
-    return render_template("index.html",
-                           students=students,
-                           message=message,
-                           section_count=section_count)
+            try:
+                marks = [int(x.strip()) for x in new_marks_input.split(",")]
+
+                if any(m < 0 or m > 100 for m in marks):
+                    return "❌ Invalid marks!"
+
+                cgpa = round(sum(marks) / len(marks), 2)
+
+                conn = sqlite3.connect("students.db")
+                cursor = conn.cursor()
+
+                cursor.execute("""
+                UPDATE students SET marks=?, cgpa=? WHERE roll=?
+                """, (new_marks_input, cgpa, roll))
+
+                conn.commit()
+                conn.close()
+
+            except:
+                return "❌ Update failed!"
+
+        return redirect("/")
+
+    # GET REQUEST
+    conn = sqlite3.connect("students.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM students")
+    students = cursor.fetchall()
+    conn.close()
+
+    return render_template("index.html", students=students)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
