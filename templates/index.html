@@ -25,7 +25,6 @@
         <option>C</option>
     </select>
 
-    <input name="subjects" placeholder="No of Subjects" required>
     <input name="marks" placeholder="Marks (80,90,70)" required>
 
     <button>Add Student</button>
@@ -42,6 +41,8 @@
     <th>Roll</th>
     <th>Dept</th>
     <th>Section</th>
+    <th>Subjects</th>
+    <th>Marks</th>
     <th>CGPA</th>
 </tr>
 
@@ -51,6 +52,8 @@
     <td>{{ s[2] }}</td>
     <td>{{ s[3] }}</td>
     <td>{{ s[4] }}</td>
+    <td>{{ s[5] }}</td>
+    <td>{{ s[6] }}</td>
     <td>{{ s[7] }}</td>
 </tr>
 {% endfor %}
