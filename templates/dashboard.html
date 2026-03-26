@@ -1,172 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Dashboard</title>
-
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            margin: 0;
-            color: white;
-        }
-
-        .container {
-            padding: 20px;
-        }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            transition: 0.3s;
-        }
-
-        .card:hover {
-            transform: scale(1.03);
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: white;
-            color: black;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        th, td {
-            padding: 10px;
-            text-align: center;
-        }
-
-        th {
-            background: #2a5298;
-            color: white;
-        }
-
-        canvas {
-            background: white;
-            border-radius: 10px;
-            padding: 10px;
-        }
-    </style>
 </head>
 
 <body>
 
-<div class="container">
+<h1>📊 Student Dashboard</h1>
 
-    <h1>📊 Advanced Student Dashboard</h1>
-
-    <div class="grid">
-
-        <!-- CGPA Chart -->
-        <div class="card">
-            <h3>📈 CGPA Performance</h3>
-            <canvas id="cgpaChart"></canvas>
-        </div>
-
-        <!-- Department Count -->
-        <div class="card">
-            <h3>🏫 Department Distribution</h3>
-            <canvas id="deptChart"></canvas>
-        </div>
-
-    </div>
-
-    <!-- TABLE -->
-    <div class="card">
-        <h3>📋 Student Data</h3>
-
-        <table>
-            <tr>
-                <th>Name</th>
-                <th>Roll</th>
-                <th>Dept</th>
-                <th>Section</th>
-                <th>CGPA</th>
-            </tr>
-
-            {% for s in students %}
-            <tr>
-                <td>{{ s[1] }}</td>
-                <td>{{ s[2] }}</td>
-                <td>{{ s[3] }}</td>
-                <td>{{ s[4] }}</td>
-                <td>{{ s[7] }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    </div>
-
-</div>
+<canvas id="cgpaChart"></canvas>
 
 <script>
+    const names = {{ students | map(attribute=1) | list | tojson }};
+    const cgpas = {{ students | map(attribute=7) | list | tojson }};
 
-    // ---------------- CGPA CHART ----------------
-    const cgpaCtx = document.getElementById('cgpaChart').getContext('2d');
+    const ctx = document.getElementById('cgpaChart');
 
-    const cgpaChart = new Chart(cgpaCtx, {
+    new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: {{ students | map(attribute=1) | list | tojson }},
+            labels: names,
             datasets: [{
                 label: 'CGPA',
-                data: [
-                    {% for s in students %}
-                        {{ s[7] }},
-                    {% endfor %}
-                ],
-                borderWidth: 1
+                data: cgpas
             }]
         }
     });
-
-    // ---------------- DEPARTMENT CHART ----------------
-    const deptCtx = document.getElementById('deptChart').getContext('2d');
-
-    const deptData = {};
-
-    {% for s in students %}
-        if (!deptData["{{ s[3] }}"]) {
-            deptData["{{ s[3] }}"] = 0;
-        }
-        deptData["{{ s[3] }}"] += 1;
-    {% endfor %}
-
-    const deptChart = new Chart(deptCtx, {
-        type: 'pie',
-        data: {
-            labels: Object.keys(deptData),
-            datasets: [{
-                data: Object.values(deptData)
-            }]
-        }
-    });
-
 </script>
+
+<br>
+<a href="/">⬅ Back</a>
 
 </body>
 </html>
