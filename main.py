@@ -33,27 +33,37 @@ def home():
     if request.method == "POST":
         action = request.form.get("action")
 
-        # ADD STUDENT
         if action == "add":
-            name = request.form.get("name")
-            roll = request.form.get("roll")
-            dept = request.form.get("dept")
-            section = request.form.get("section")
-
             try:
-                subjects = int(request.form.get("subjects"))
-                marks_input = request.form.get("marks")
+                name = request.form.get("name", "").strip()
+                roll = request.form.get("roll", "").strip()
+                dept = request.form.get("dept", "").strip()
+                section = request.form.get("section", "").strip()
+                marks_input = request.form.get("marks", "").strip()
 
-                marks = [int(x.strip()) for x in marks_input.split(",")]
+                # Validate empty
+                if not name or not roll or not marks_input:
+                    return "❌ Fill all fields"
 
-                if len(marks) != subjects:
-                    return "❌ Subjects & marks mismatch"
+                # Convert marks
+                marks = []
+                for m in marks_input.split(","):
+                    m = m.strip()
+                    if not m.isdigit():
+                        return "❌ Use format like 80,90,70"
+                    m = int(m)
 
-                if any(m < 0 or m > 100 for m in marks):
-                    return "❌ Marks must be 0–100"
+                    if m < 0 or m > 100:
+                        return "❌ Marks must be 0–100"
 
+                    marks.append(m)
+
+                subjects = len(marks)
+
+                # CGPA
                 cgpa = round(sum(marks) / len(marks), 2)
 
+                # Save
                 conn = sqlite3.connect("students.db")
                 cursor = conn.cursor()
 
@@ -67,12 +77,12 @@ def home():
 
             except sqlite3.IntegrityError:
                 return "❌ Roll number already exists!"
-            except:
-                return "❌ Invalid input!"
+            except Exception as e:
+                return f"ERROR: {e}"
 
         return redirect("/")
 
-    # FETCH DATA
+    # GET
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM students")
